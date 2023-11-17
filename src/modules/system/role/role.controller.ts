@@ -1,0 +1,87 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common'
+import { ApiOperation, ApiTags } from '@nestjs/swagger'
+
+import { ApiResult } from '@/common/decorators/api-result.decorator'
+import { IdParam } from '@/common/decorators/id-param.decorator'
+import { ApiSecurityAuth } from '@/common/decorators/swagger.decorator'
+import { PageOptionsDto } from '@/common/dto/page-options.dto'
+import { Permission } from '@/modules/auth/decorators/permission.decorator'
+import { RoleEntity } from '@/modules/system/role/role.entity'
+
+import { MenuService } from '../menu/menu.service'
+
+import { RoleDto } from './role.dto'
+import { RoleService } from './role.service'
+
+export const Permissions = {
+  LIST: 'system:role:list',
+  CREATE: 'system:role:create',
+  READ: 'system:role:read',
+  UPDATE: 'system:role:update',
+  DELETE: 'system:role:delete',
+} as const
+
+@ApiTags('System - 角色模块')
+@ApiSecurityAuth()
+@Controller('roles')
+export class RoleController {
+  constructor(
+    private roleService: RoleService,
+    private menuService: MenuService,
+  ) {}
+
+  @Get()
+  @ApiOperation({ summary: '获取角色列表' })
+  @ApiResult({ type: [RoleEntity] })
+  @Permission(Permissions.LIST)
+  async list(@Query() dto: PageOptionsDto) {
+    return this.roleService.findAll(dto)
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: '获取角色信息' })
+  @ApiResult({ type: RoleEntity })
+  @Permission(Permissions.READ)
+  async info(@IdParam() id: number) {
+    return this.roleService.info(id)
+  }
+
+  @Post()
+  @ApiOperation({ summary: '新增角色' })
+  @Permission(Permissions.CREATE)
+  async create(@Body() dto: RoleDto): Promise<void> {
+    await this.roleService.create(dto)
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: '更新角色' })
+  @Permission(Permissions.UPDATE)
+  async update(
+    @IdParam() id: number,
+    @Body() dto: Partial<RoleDto>,
+  ): Promise<void> {
+    await this.roleService.update(id, dto)
+    await this.menuService.refreshOnlineUserPerms()
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '删除角色' })
+  @Permission(Permissions.DELETE)
+  async delete(@IdParam() id: number): Promise<void> {
+    if (await this.roleService.checkUserByRoleId(id)) {
+      throw new BadRequestException('该角色存在关联用户，无法删除')
+    }
+
+    await this.roleService.delete(id)
+    await this.menuService.refreshOnlineUserPerms()
+  }
+}

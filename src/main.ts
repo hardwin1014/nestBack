@@ -1,71 +1,113 @@
+import cluster from 'cluster'
+import path from 'path'
+
 import {
+  ClassSerializerInterceptor,
   HttpStatus,
   Logger,
   UnprocessableEntityException,
   ValidationPipe,
-} from '@nestjs/common';
-import { NestFactory, Reflector } from '@nestjs/core';
-import {
-  FastifyAdapter,
-  NestFastifyApplication,
-} from '@nestjs/platform-fastify';
-import { ConfigService } from '@nestjs/config';
-import { ValidationError } from 'class-validator';
-import { AppModule } from './app.module';
-import { ApiExceptionFilter } from './common/filters/api-exception.filter';
-import { ApiTransformInterceptor } from './common/interceptors/api-transform.interceptor';
-import { setupSwagger } from './setup-swagger';
-import { LoggerService } from './shared/logger/logger.service';
-import { SocketIoAdapter } from '@/modules/ws/socket-io.adapter';
+} from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { NestFactory, Reflector } from '@nestjs/core'
+import { NestFastifyApplication } from '@nestjs/platform-fastify'
 
-const SERVER_PORT = process.env.SERVER_PORT;
+import { useContainer } from 'class-validator'
+
+import { AppModule } from './app.module'
+
+import { fastifyApp } from './common/adapters/fastify.adapter'
+import { IoAdapter } from './common/adapters/socket.adapter'
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+import { TransformInterceptor } from './common/interceptors/transform.interceptor'
+import { IAppConfig } from './config'
+import { isDev, isMainProcess } from './global/env'
+import { setupSwagger } from './setup-swagger'
+import { MyLogger } from './shared/logger/logger.service'
+
+declare const module: any
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    fastifyApp,
     {
       bufferLogs: true,
+      snapshot: true,
     },
-  );
-  app.enableCors();
-  // 给请求添加prefix
-  // app.setGlobalPrefix(PREFIX);
-  // custom logger
-  app.useLogger(app.get(LoggerService));
-  // validate
+  )
+
+  const configService = app.get(ConfigService)
+
+  const reflector = app.get(Reflector)
+
+  // class-validator 的 DTO 类中注入 nest 容器的依赖
+  useContainer(app.select(AppModule), { fallbackOnErrors: true })
+
+  app.enableCors({ origin: '*', credentials: true })
+  app.setGlobalPrefix('api')
+  app.useStaticAssets({ root: path.join(__dirname, '..', 'public') })
+
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(reflector),
+    new TransformInterceptor(reflector),
+    new TimeoutInterceptor(),
+  )
+
+  if (isDev) {
+    app.useGlobalInterceptors(new LoggingInterceptor())
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: true },
+      // forbidNonWhitelisted: true, // 禁止 无装饰器验证的数据通过
       errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-      exceptionFactory: (errors: ValidationError[]) => {
-        return new UnprocessableEntityException(
-          errors
-            .filter((item) => !!item.constraints)
-            .flatMap((item) => Object.values(item.constraints))
-            .join('; '),
-        );
-      },
+      stopAtFirstError: true,
+      exceptionFactory: (errors) =>
+        new UnprocessableEntityException(
+          errors.map((e) => {
+            const rule = Object.keys(e.constraints!)[0]
+            const msg = e.constraints![rule]
+            return msg
+          })[0],
+        ),
     }),
-  );
-  // execption
-  app.useGlobalFilters(new ApiExceptionFilter(app.get(LoggerService)));
-  // api interceptor
-  app.useGlobalInterceptors(new ApiTransformInterceptor(new Reflector()));
+  )
+
   // websocket
-  app.useWebSocketAdapter(new SocketIoAdapter(app, app.get(ConfigService)));
-  // swagger
-  setupSwagger(app);
-  // start
-  await app.listen(SERVER_PORT, '0.0.0.0');
-  const serverUrl = await app.getUrl();
-  Logger.log(`api服务已经启动,请访问: ${serverUrl}`);
-  Logger.log(`API文档已生成,请访问: ${serverUrl}/${process.env.SWAGGER_PATH}/`);
-  Logger.log(
-    `ws服务已经启动,请访问: http://localhost:${process.env.WS_PORT}${process.env.WS_PATH}`,
-  );
+  app.useWebSocketAdapter(new IoAdapter())
+
+  const { port } = configService.get<IAppConfig>('app')!
+
+  setupSwagger(app, configService)
+
+  await app.listen(port, '0.0.0.0', async () => {
+    app.useLogger(app.get(MyLogger))
+    const url = await app.getUrl()
+    const { pid } = process
+    const env = cluster.isPrimary
+    const prefix = env ? 'P' : 'W'
+
+    if (!isMainProcess) {
+      return
+    }
+
+    const logger = new Logger('NestApplication')
+    logger.log(`[${prefix + pid}] Server running on ${url}`)
+
+    if (isDev) {
+      logger.log(`[${prefix + pid}] OpenAPI: ${url}/api-docs`)
+    }
+  })
+
+  if (module.hot) {
+    module.hot.accept()
+    module.hot.dispose(() => app.close())
+  }
 }
 
-bootstrap();
+bootstrap()

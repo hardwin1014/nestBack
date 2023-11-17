@@ -1,47 +1,61 @@
-import { HttpModule } from '@nestjs/axios';
-import { Global, CacheModule, Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { RedisModule } from './redis/redis.module';
-import { RedisService } from './services/redis.service';
-import { UtilService } from './services/util.service';
-import { ConfigurationKeyPaths } from '@/config/configuration';
+import { RedisModule } from '@liaoliaots/nestjs-redis'
+import { HttpModule } from '@nestjs/axios'
+import { CacheModule } from '@nestjs/cache-manager'
+import { Global, Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { ThrottlerModule } from '@nestjs/throttler'
+import { MailerModule } from '@nestjs-modules/mailer'
 
-// common provider list
-const providers = [UtilService, RedisService];
+import { IMailerConfig, IRedisConfig } from '@/config'
 
-/**
- * 全局共享模块
- */
+import { IpService } from './ip/ip.service'
+import { LoggerModule } from './logger/logger.module'
+import { MailerService } from './mailer/mailer.service'
+import { QQService } from './qq/qq.service'
+
+const providers = [MailerService, IpService, QQService]
+
 @Global()
 @Module({
   imports: [
-    HttpModule.register({
-      timeout: 5000,
-      maxRedirects: 5,
-    }),
+    // logger
+    LoggerModule,
+    // http
+    HttpModule,
     // redis cache
-    CacheModule.register(),
-    // jwt
-    JwtModule.registerAsync({
+    CacheModule.register({
+      isGlobal: true,
+      // store: redisStore,
+
+      // host: 'localhost',
+      // port: 6379,
+    }),
+    // rate limit
+    ThrottlerModule.forRoot([
+      {
+        limit: 3,
+        ttl: 60000,
+      },
+    ]),
+    // redis
+    RedisModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService<ConfigurationKeyPaths>) => ({
-        secret: configService.get<string>('jwt.secret'),
+      useFactory: (configService: ConfigService) => ({
+        readyLog: true,
+        config: configService.get<IRedisConfig>('redis'),
       }),
       inject: [ConfigService],
     }),
-    RedisModule.registerAsync({
+    // mailer
+    MailerModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService<ConfigurationKeyPaths>) => ({
-        host: configService.get<string>('redis.host'),
-        port: configService.get<number>('redis.port'),
-        password: configService.get<string>('redis.password'),
-        db: configService.get<number>('redis.db'),
+      useFactory: (configService: ConfigService) => ({
+        transport: configService.get<IMailerConfig>('mailer'),
       }),
       inject: [ConfigService],
     }),
   ],
   providers: [...providers],
-  exports: [HttpModule, CacheModule, JwtModule, ...providers],
+  exports: [HttpModule, CacheModule, ...providers],
 })
 export class SharedModule {}
