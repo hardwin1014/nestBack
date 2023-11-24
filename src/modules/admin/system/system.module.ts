@@ -19,6 +19,7 @@ import SysUserRole from 'src/entities/admin/sys-user-role.entity';
 import SysUser from 'src/entities/admin/sys-user.entity';
 import { WSModule } from 'src/modules/ws/ws.module';
 import SysConfig from 'src/entities/admin/sys-config.entity';
+// import Personal from 'src/entities/business/personal.entity';
 import { rootRoleIdProvider } from '../core/provider/root-role-id.provider';
 import { SysDeptController } from './dept/dept.controller';
 import { SysDeptService } from './dept/dept.service';
@@ -56,6 +57,8 @@ import { ConfigurationKeyPaths } from '@/config/configuration';
       SysTask,
       SysTaskLog,
       SysConfig,
+      // 业务entity
+      // Personal,
     ]),
     BullModule.registerQueueAsync({
       name: SYS_TASK_QUEUE_NAME,
