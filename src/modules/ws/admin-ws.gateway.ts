@@ -10,7 +10,7 @@ import { AuthService } from './auth.service';
 import { EVENT_OFFLINE, EVENT_ONLINE } from './ws.event';
 
 /**
- * Admin WebSokcet网关，不含权限校验，Socket端只做通知相关操作
+ * Admin WebSocket网关，不含权限校验，Socket端只做通知相关操作
  */
 @WebSocketGateway()
 export class AdminWSGateway

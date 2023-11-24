@@ -19,7 +19,7 @@ import SysUserRole from 'src/entities/admin/sys-user-role.entity';
 import SysUser from 'src/entities/admin/sys-user.entity';
 import { WSModule } from 'src/modules/ws/ws.module';
 import SysConfig from 'src/entities/admin/sys-config.entity';
-// import Personal from 'src/entities/business/personal.entity';
+import Personal from 'src/entities/business/personal.entity';
 import { rootRoleIdProvider } from '../core/provider/root-role-id.provider';
 import { SysDeptController } from './dept/dept.controller';
 import { SysDeptService } from './dept/dept.service';
@@ -40,6 +40,8 @@ import { SysParamConfigController } from './param-config/param-config.controller
 import { SysParamConfigService } from './param-config/param-config.service';
 import { SysServeController } from './serve/serve.controller';
 import { SysServeService } from './serve/serve.service';
+import { PersonalController } from './personal/personal.controller';
+import { PersonalService } from './personal/personal.service';
 import { ConfigurationKeyPaths } from '@/config/configuration';
 
 @Module({
@@ -58,7 +60,7 @@ import { ConfigurationKeyPaths } from '@/config/configuration';
       SysTaskLog,
       SysConfig,
       // 业务entity
-      // Personal,
+      Personal,
     ]),
     BullModule.registerQueueAsync({
       name: SYS_TASK_QUEUE_NAME,
@@ -86,6 +88,7 @@ import { ConfigurationKeyPaths } from '@/config/configuration';
     SysOnlineController,
     SysParamConfigController,
     SysServeController,
+    PersonalController,
   ],
   providers: [
     rootRoleIdProvider(),
@@ -99,6 +102,7 @@ import { ConfigurationKeyPaths } from '@/config/configuration';
     SysOnlineService,
     SysParamConfigService,
     SysServeService,
+    PersonalService,
   ],
   exports: [
     ROOT_ROLE_ID,

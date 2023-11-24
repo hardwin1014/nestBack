@@ -23,12 +23,11 @@ export class AdminWSService {
    * 获取当前在线用户
    */
   async getOnlineSockets() {
-    const onlineSockets = await this.adminWsGateWay.socketServer.fetchSockets();
-    return onlineSockets;
+    return await this.adminWsGateWay.socketServer.fetchSockets();
   }
 
   /**
-   * 根据uid查找socketid
+   * 根据uid查找socketId
    */
   async findSocketIdByUid(
     uid: number,
@@ -59,8 +58,8 @@ export class AdminWSService {
 
   /**
    * 通知前端重新获取权限菜单
-   * @param userIds
    * @constructor
+   * @param uid
    */
   async noticeUserToUpdateMenusByUserIds(uid: number | number[]) {
     const userIds = Array.isArray(uid) ? uid : [uid];
