@@ -18,14 +18,13 @@ import Personal from '@/entities/business/personal.entity';
 export class PersonalController {
   constructor(private readonly personalService: PersonalService) {}
 
-  // @ApiOperation({
-  //   summary: '员工信息列表',
-  // })
-  // @ApiOkResponse({ type: [queryFormDto] })
-  // @Get('list')
-  // async findAll(@Body() dto: queryFormDto): Promise<Personal[]> {
-  //   return this.personalService.list();
-  // }
+  @ApiOperation({
+    summary: '员工信息列表',
+  })
+  @Get('list')
+  async findAll(): Promise<Personal[]> {
+    return this.personalService.findAll();
+  }
 
   @ApiOperation({
     summary: '获取员工信息详情',
@@ -38,7 +37,7 @@ export class PersonalController {
   @ApiOperation({
     summary: '新增员工信息',
   })
-  @Post('add')
+  @Post('addPersonal')
   async create(@Body() createPersonalDto: CreatePersonalDto): Promise<void> {
     await this.personalService.create(createPersonalDto);
   }
@@ -51,7 +50,7 @@ export class PersonalController {
     @Param('id') id: number,
     @Body() updatePersonalDto: UpdatePersonalDto,
   ) {
-    return this.personalService.update(id, updatePersonalDto);
+    return this.personalService.update(+id, updatePersonalDto);
   }
 
   @ApiOperation({

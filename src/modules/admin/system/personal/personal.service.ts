@@ -12,6 +12,10 @@ export class PersonalService {
     private readonly personalRepository: Repository<Personal>,
   ) {}
 
+  async findAll(): Promise<Personal[]> {
+    return this.personalRepository.find();
+  }
+
   async findOne(id: number): Promise<Personal | undefined> {
     return this.personalRepository.findOne({
       where: { id: id },
@@ -23,7 +27,7 @@ export class PersonalService {
   }
 
   async update(id: number, personal: UpdatePersonalDto): Promise<void> {
-    await this.personalRepository.update(id, personal);
+    await this.personalRepository.update(id, { ...personal });
   }
 
   async remove(id: number): Promise<void> {
