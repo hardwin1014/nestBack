@@ -7,12 +7,14 @@ import {
   Put,
   Delete,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { PersonalService } from './personal.service';
 import { CreatePersonalDto } from './dto/create-personal.dto';
 import { UpdatePersonalDto } from './dto/update-personal.dto';
 import Personal from '@/entities/business/personal.entity';
+import { ADMIN_PREFIX } from '@/modules/admin/admin.constants';
 
+@ApiSecurity(ADMIN_PREFIX)
 @ApiTags('员工信息管理模块')
 @Controller('personal')
 export class PersonalController {

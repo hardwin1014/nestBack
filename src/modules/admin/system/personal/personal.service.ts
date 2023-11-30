@@ -13,11 +13,11 @@ export class PersonalService {
   ) {}
 
   async findAll(): Promise<Personal[]> {
-    return this.personalRepository.find();
+    return await this.personalRepository.find();
   }
 
   async findOne(id: number): Promise<Personal | undefined> {
-    return this.personalRepository.findOne({
+    return await this.personalRepository.findOne({
       where: { id: id },
     });
   }
